@@ -210,7 +210,7 @@ while True:
        pygame.sprite.groupcollide(bird_group, pipe_group, False, False, pygame.sprite.collide_mask)):
         #GameOver
         input()
-       ## break
+        break
         
             
     pygame.display.update()
