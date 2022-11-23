@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "FlappyPI",
+			"path": "."
+		},
+		{
+			"name": "assets",
+			"path": "../../Downloads/FlapPyBird-master/FlapPyBird-master/assets"
+		}
+	],
+	"settings": {}
+}
