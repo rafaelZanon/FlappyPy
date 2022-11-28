@@ -80,6 +80,8 @@ class Pipe(pygame.sprite.Sprite):
            #que ele tenha 200px. Então 300px - 200px = 100px. então aqui eu começaria ele com -100px
            #sobrando 200px ele inverte e fica um cano menor ou maior do original
            
+           
+           ## PASSAMOS PRIMEIRO O FALSE POIS NAO QUEREMOS INVERTER O X NÓS QUEREMOS INVERTER O Y
            if invertedPipe:
                self.image = pygame.transform.flip(self.image, False, True)
                self.rect[1] = - (self.rect[3] - ySize)
@@ -209,7 +211,6 @@ while True:
     if (pygame.sprite.groupcollide(bird_group, ground_group, False, False, pygame.sprite.collide_mask) or
        pygame.sprite.groupcollide(bird_group, pipe_group, False, False, pygame.sprite.collide_mask)):
         #GameOver
-        input()
         break
         
             
