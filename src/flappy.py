@@ -1,23 +1,33 @@
+##Configurando os leds
+##importando as bibliotecas de integração com o raspberry
+import RPi.GPIO as gp
+import time
+
+gp.setmode(gp.BCM)
+##definindo os leds
+gp.setup(17, gp.OUT, initial = gp.LOW)
+gp.setup(18, gp.OUT, initial = gp.LOW)
+
 ##importando pygame
 import pygame, random
 from pygame.locals import *
 
 ##definindo variaveis 
-SCREEN_WIDTH = 400
-SCREEN_HEIGHT = 800
-SPEED = 10
-GRAVITY = 1
-GAME_SPEED = 10
+LARGURA_TELA = 400
+ALTURA_TELA = 800
+VELOCIDADE = 10
+GRAVIDADE = 1
+VELOCIDADE_JOGO = 10
 
-GROUND_WIDTH = 2 * SCREEN_WIDTH
-GROUND_HEIGHT = 100
+LARGURA_CHAO = 2 * LARGURA_TELA
+ALTURA_CHAO = 100
 
-PIPE_WIDTH = 80
-PIPE_HEIGHT = 500
-PIPE_GAP = 200
+LARGURA_CANO = 80
+ALTURA_CANO = 500
+VAO_CANO = 200
 
 ##Classe bird (personagem)
-class Bird(pygame.sprite.Sprite):
+class Passaro(pygame.sprite.Sprite):
     
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -27,41 +37,45 @@ class Bird(pygame.sprite.Sprite):
                        pygame.image.load('./assets/sprites/bluebird-midflap.png').convert_alpha(),
                        pygame.image.load('./assets/sprites/bluebird-downflap.png').convert_alpha()]  
         
-        self.speed = SPEED
+        self.velocidade = VELOCIDADE
         
-        self.current_image = 0
+        self.imagem_atual = 0
         
         ##começando o jogo com essa sprite!
         self.image = pygame.image.load('./assets/sprites/bluebird-upflap.png').convert_alpha()
         #criando mascara de colisão
-        self.mask = pygame.mask.from_surface(self.image)
+        self.mascara = pygame.mask.from_surface(self.image)
         
         self.rect = self.image.get_rect()
         ##Colocando o passaro no meio da tela divindo os tamanhos por 2 
-        self.rect[0] = SCREEN_WIDTH / 2
-        self.rect[1] = SCREEN_HEIGHT / 2
+        self.rect[0] = LARGURA_TELA / 2
+        self.rect[1] = ALTURA_TELA / 2
         
     def update(self):
-        self.current_image = (self.current_image + 1) % 3
-        self.image = self.images [ self.current_image ]
+        self.imagem_atual = (self.imagem_atual + 1) % 3
+        self.image = self.images [ self.imagem_atual ]
         
-        self.speed += GRAVITY
+        self.velocidade += GRAVIDADE
         
         ## alterando o height fazendo o passaro cair
-        self.rect[1] += self.speed
+        self.rect[1] += self.velocidade
         
     def fly(self):
-        self.speed = -SPEED  
+        self.velocidade = -VELOCIDADE
+        ##a cada vez que o passo voar o led verde acende
+        gp.output(18,gp.HIGH)
+        time.sleep(0.5)
+        gp.output(18,gp.LOW)
         
         
 ##Criando a classe cano
-class Pipe(pygame.sprite.Sprite):
+class Cano(pygame.sprite.Sprite):
             
-    def __init__(self, invertedPipe, xPos, ySize):
+    def __init__(self, isCanoInvertido, xPos, ySize):
            pygame.sprite.Sprite.__init__(self)
         
            self.image = pygame.image.load('./assets/sprites/pipe-red.png').convert_alpha()
-           self.image = pygame.transform.scale(self.image, (PIPE_WIDTH, PIPE_HEIGHT))
+           self.image = pygame.transform.scale(self.image, (LARGURA_CANO, ALTURA_CANO))
            
            self.rect = self.image.get_rect()
            self.rect[0] = xPos
@@ -82,136 +96,138 @@ class Pipe(pygame.sprite.Sprite):
            
            
            ## PASSAMOS PRIMEIRO O FALSE POIS NAO QUEREMOS INVERTER O X NÓS QUEREMOS INVERTER O Y
-           if invertedPipe:
+           if isCanoInvertido:
                self.image = pygame.transform.flip(self.image, False, True)
                self.rect[1] = - (self.rect[3] - ySize)
            else:
-               self.rect[1] = SCREEN_HEIGHT - ySize
-               self.mask = pygame.mask.from_surface(self.image)  
+               self.rect[1] = ALTURA_TELA - ySize
+               self.mascara = pygame.mask.from_surface(self.image)  
                
     def update(self): 
-            self.rect[0] -= GAME_SPEED  
+            self.rect[0] -= VELOCIDADE_JOGO  
          
                         
 ##Criando a classe chão      
-class Ground(pygame.sprite.Sprite):
+class Chao(pygame.sprite.Sprite):
     def __init__(self, xPos):
         pygame.sprite.Sprite.__init__(self)
         
         ##adicionando a imagem
         self.image = pygame.image.load('./assets/sprites/base.png').convert_alpha()  
-        self.image = pygame.transform.scale(self.image,(GROUND_WIDTH, GROUND_HEIGHT))
+        self.image = pygame.transform.scale(self.image,(LARGURA_CHAO, ALTURA_CHAO))
         
         #criando mascara de colisão
-        self.mask = pygame.mask.from_surface(self.image)
+        self.mascara = pygame.mask.from_surface(self.image)
         
         self.rect = self.image.get_rect()
         #definindo posição do segundo chão
         self.rect[0] = xPos
         #colocando o chão no chão
-        self.rect[1] = SCREEN_HEIGHT - GROUND_HEIGHT
+        self.rect[1] = ALTURA_TELA - ALTURA_CHAO
         
     def update(self):
-        self.rect[0] -= GAME_SPEED
+        self.rect[0] -= VELOCIDADE_JOGO
 
 def is_off_screen(sprite):
     #aqui fazemos uma função para veificar se o sprite saiu da tela
     return sprite.rect[0] < - (sprite.rect[2])
 
-def get_random_pipes(xPos):
+def get_random_canos(xPos):
     #criando os tamanhos dos canos aleatoriamente
     size = random.randint(100, 300)
-    #criando o cano comum e passando os parametros da classe Pipe()
-    pipe = Pipe(False, xPos, size)
-    #criando os canos invertidos passando os paramentros da classe Pipe()
-    pipe_inverted = Pipe(True, xPos, SCREEN_HEIGHT - size - PIPE_GAP)
+    #criando o cano comum e passando os parametros da classe Cano()
+    cano = Cano(False, xPos, size)
+    #criando os canos invertidos passando os paramentros da classe Cano()
+    cano_inverted = Cano(True, xPos, ALTURA_TELA - size - VAO_CANO)
     #retornando tupla com os canos
-    return(pipe, pipe_inverted)
+    return(cano, cano_inverted)
 
 #Iniciando Jogo com os tamanhos de tela
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
+screen = pygame.display.set_mode((LARGURA_TELA,ALTURA_TELA))
 
-##definindo background e tamanho do mesmo
-BACKGROUND = pygame.image.load('./assets/sprites/background-day.png')
-BACKGROUND = pygame.transform.scale(BACKGROUND, (SCREEN_WIDTH, SCREEN_HEIGHT))
+##definindo FUNDO e tamanho do mesmo
+FUNDO = pygame.image.load('./assets/sprites/background-day.png')
+FUNDO = pygame.transform.scale(FUNDO, (LARGURA_TELA, ALTURA_TELA))
 
 ##criando grupo de passaro
-bird_group = pygame.sprite.Group()
-bird = Bird()
-bird_group.add(bird)
+passaro_grupo = pygame.sprite.Group()
+passaro = Passaro()
+passaro_grupo.add(passaro)
 
 ##criando grupo de chão
 
-ground_group = pygame.sprite.Group()
+chao_grupo = pygame.sprite.Group()
     # na primeira interação o i vale 0 sendo o primeiro chão
     # na segunda interação o i vale 1 sendo o segundo chão
     # se tornando um laço fazendo com que o chão se tenha um tamanho maior
 for i in range (2): 
-    ground = Ground(GROUND_WIDTH * i)
-    ground_group.add(ground)
+    chao = Chao(LARGURA_CHAO * i)
+    chao_grupo.add(chao)
 
-pipe_group = pygame.sprite.Group()
+cano_grupo = pygame.sprite.Group()
 for i in range(2):
-    pipes = get_random_pipes(SCREEN_WIDTH * i + 800)
-    pipe_group.add(pipes[0])
-    pipe_group.add(pipes[1])
+    canos = get_random_canos(LARGURA_TELA * i + 800)
+    cano_grupo.add(canos[0])
+    cano_grupo.add(canos[1])
 
 ##definindo FPS do jogo
 clock = pygame.time.Clock()
 
 ##Looping infinito ativar o jogo
 while True:
-    clock.tick(30)
+    clock.tick(15)
     for event in pygame.event.get(): 
         if event.type == QUIT:
             pygame.quit()
             
         if event.type == KEYDOWN:
             if event.key == K_SPACE:
-                bird.fly()
+                passaro.fly()
             
-    screen.blit(BACKGROUND, (0, 0))
+    screen.blit(FUNDO, (0, 0))
     
     #usando a função que criamos para deixar o chão infinito e não bugar o sprite
-    if is_off_screen(ground_group.sprites()[0]):
-        ground_group.remove(ground_group.sprites()[0])
+    if is_off_screen(chao_grupo.sprites()[0]):
+        chao_grupo.remove(chao_grupo.sprites()[0])
         
-        new_ground = Ground(GROUND_WIDTH - 20)
-        ground_group.add(new_ground)
+        new_chao = Chao(LARGURA_CHAO - 20)
+        chao_grupo.add(new_chao)
         
         #verificando se os canos ja estao fora da tela para apaga-los
         #e liberar memoria
-    if is_off_screen(pipe_group.sprites()[0]):
+    if is_off_screen(cano_grupo.sprites()[0]):
         #removendo canos normais
-        pipe_group.remove(pipe_group.sprites()[0])
+        cano_grupo.remove(cano_grupo.sprites()[0])
         #removendo canos invertidos
-        pipe_group.remove(pipe_group.sprites()[0])
+        cano_grupo.remove(cano_grupo.sprites()[0])
         
         #gerando canos mais a frente do personagem
-        pipes = get_random_pipes(SCREEN_WIDTH * 2)
+        canos = get_random_canos(LARGURA_TELA * 2)
         
         #criando canos normais
-        pipe_group.add(pipes[0])
+        cano_grupo.add(canos[0])
         #criando canos invertidos
-        pipe_group.add(pipes[1])
+        cano_grupo.add(canos[1])
         
     
     ##atualizando sprites
-    bird_group.update()
-    ground_group.update()
-    pipe_group.update()
+    passaro_grupo.update()
+    chao_grupo.update()
+    cano_grupo.update()
     
     ##desenhar todos que estão no grupo
-    bird_group.draw(screen)
-    ground_group.draw(screen)
-    pipe_group.draw(screen)
+    passaro_grupo.draw(screen)
+    chao_grupo.draw(screen)
+    cano_grupo.draw(screen)
     
     ##definindo colisão para o personagem morrer
-    if (pygame.sprite.groupcollide(bird_group, ground_group, False, False, pygame.sprite.collide_mask) or
-       pygame.sprite.groupcollide(bird_group, pipe_group, False, False, pygame.sprite.collide_mask)):
+    if (pygame.sprite.groupcollide(passaro_grupo, chao_grupo, False, False, pygame.sprite.collide_mask) or
+       pygame.sprite.groupcollide(passaro_grupo, cano_grupo, False, False, pygame.sprite.collide_mask)):
         #GameOver
+        ##quando o personagem colidir ele acende o led vermelho
+        gp.output(17,gp.HIGH)
+        gp.output(18,gp.LOW)
         break
-        
-            
+                
     pygame.display.update()
